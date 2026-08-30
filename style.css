@@ -45,6 +45,15 @@ section ul {
   overflow-wrap: anywhere;
 }
 
+.email-meta .meta-highlight {
+  display: inline-block;
+  background: #fff3b0;
+  color: #111;
+  font-weight: bold;
+  padding: 0.05em 0.4em;
+  margin: 0.15em 0;
+}
+
 hr {
   border: none;
   border-top: 1px solid #ccc;

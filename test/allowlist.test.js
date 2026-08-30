@@ -27,3 +27,16 @@ test('fails closed when there is no from address', () => {
   assert.equal(isAllowedSender('', 'me@example.com'), false);
   assert.equal(isAllowedSender(undefined, 'me@example.com'), false);
 });
+
+test('accepts a comma-separated list of multiple allowed senders', () => {
+  const allowed = 'me@example.com,other@example.com';
+  assert.equal(isAllowedSender('me@example.com', allowed), true);
+  assert.equal(isAllowedSender('other@example.com', allowed), true);
+  assert.equal(isAllowedSender('stranger@example.com', allowed), false);
+});
+
+test('tolerates whitespace and case within the comma-separated list', () => {
+  const allowed = ' Me@Example.com , Other@Example.com ';
+  assert.equal(isAllowedSender('me@example.com', allowed), true);
+  assert.equal(isAllowedSender('other@example.com', allowed), true);
+});

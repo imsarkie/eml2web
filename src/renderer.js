@@ -17,9 +17,10 @@ function defaultTemplatePath() {
 
 export { escapeHtml };
 
-function metaLine(label, value) {
+function metaLine(label, value, className) {
   if (!value) return '';
-  return `  <div>${escapeHtml(label)}: ${escapeHtml(value)}</div>`;
+  const classAttr = className ? ` class="${className}"` : '';
+  return `  <div${classAttr}>${escapeHtml(label)}: ${escapeHtml(value)}</div>`;
 }
 
 // `template` lets a caller supply the template text directly instead of
@@ -29,9 +30,9 @@ export function renderPost(post, { template } = {}) {
   const templateText = template ?? fs.readFileSync(defaultTemplatePath(), 'utf8');
 
   const meta = [
-    metaLine('From', post.from),
+    metaLine('From', post.from, 'meta-highlight'),
     metaLine('To', post.to),
-    metaLine('Subject', post.subject),
+    metaLine('Subject', post.subject, 'meta-highlight'),
     metaLine('Tags', Array.isArray(post.tags) && post.tags.length ? post.tags.join(', ') : ''),
     metaLine('Date', post.date),
     metaLine('Message-ID', post.messageId),

@@ -233,9 +233,10 @@ and calls the exact same `parseEmail` / `renderPost` / `buildBaseName` /
 `publishToGitHub` / `updateArchive` functions the CLI uses. `index.html` and
 `about.html` are static, so the Worker never touches them.
 
-**Only mail whose sender exactly matches `ALLOWED_SENDER` gets published; anything
-else is silently dropped** (see `src/allowlist.js`). This fails closed: if
-`ALLOWED_SENDER` isn't configured at all, nothing publishes - it does not fall back
+**Only mail from an address listed in `ALLOWED_SENDER` gets published; anything
+else is silently dropped** (see `src/allowlist.js`). `ALLOWED_SENDER` holds one
+address, or several comma-separated (`a@example.com,b@example.com`). This fails
+closed: if it isn't configured at all, nothing publishes - it does not fall back
 to "allow everyone." Without this, the routing address would be an open publish
 endpoint for anyone who discovered it.
 
@@ -258,7 +259,7 @@ want to receive mail on:
    npm install -g wrangler   # or use `npx wrangler`
    wrangler login
    wrangler secret put GITHUB_TOKEN      # the same fine-grained token as above
-   wrangler secret put ALLOWED_SENDER    # the one address allowed to publish
+   wrangler secret put ALLOWED_SENDER    # address(es) allowed to publish, comma-separated
    wrangler deploy
    ```
    `GITHUB_OWNER` / `GITHUB_REPO` / `GITHUB_BRANCH` / `POSTS_DIR` are already set in
