@@ -5,8 +5,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'post.html');
+// Computed lazily, not at module load: import.meta.url isn't a usable
+// file:// URL in the Cloudflare Worker runtime, and that environment
+// never reaches this path anyway (it always passes `template` in below).
+function defaultTemplatePath() {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  return path.join(__dirname, '..', 'templates', 'post.html');
+}
 
 const ESCAPE_MAP = {
   '&': '&amp;',
@@ -25,8 +30,11 @@ function metaLine(label, value) {
   return `  <div>${escapeHtml(label)}: ${escapeHtml(value)}</div>`;
 }
 
-export function renderPost(post) {
-  const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+// `template` lets a caller supply the template text directly instead of
+// reading it from disk - the Cloudflare Worker adapter has no filesystem,
+// so it bundles templates/post.html as a text import and passes it in.
+export function renderPost(post, { template } = {}) {
+  const templateText = template ?? fs.readFileSync(defaultTemplatePath(), 'utf8');
 
   const meta = [
     metaLine('From', post.from),
@@ -45,7 +53,7 @@ export function renderPost(post) {
   // Use function replacers, not string replacers: escaped content can
   // contain "$" sequences that String.replace would otherwise interpret
   // as replacement patterns (e.g. "$&") and silently corrupt the output.
-  return template
+  return templateText
     .replace('{{TITLE}}', () => escapeHtml(title))
     .replace('{{META}}', () => meta)
     .replace('{{BODY}}', () => escapeHtml(post.body));

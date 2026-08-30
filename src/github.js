@@ -11,6 +11,12 @@
 // duplicate delivery of the same email can't slip through under a
 // different filename. No database for that yet - see README.
 
+// Explicit import rather than relying on Node's global `Buffer`: this
+// keeps the module portable to the Cloudflare Worker runtime, which
+// polyfills `node:buffer` under the `nodejs_compat` flag but doesn't
+// have Node's implicit globals.
+import { Buffer } from 'node:buffer';
+
 const API_ROOT = 'https://api.github.com';
 
 export class GitHubPublishError extends Error {

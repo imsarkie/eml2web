@@ -1,10 +1,28 @@
 name = "eml2web"
 main = "src/worker.js"
 compatibility_date = "2026-08-30"
+compatibility_flags = ["nodejs_compat"]
 
-# Not deployed yet. This exists to hold the shape of the future
-# Cloudflare Email Routing -> Worker -> GitHub publish path (see
-# README.md, "Future Cloudflare architecture"). Once that phase is
-# built, this file will need:
-#   - an [[send_email]] or email routing binding
-#   - a GITHUB_TOKEN secret (via `wrangler secret put GITHUB_TOKEN`)
+# Bundles templates/post.html as a raw string import (src/worker.js has
+# no filesystem to read it from, unlike the local CLI).
+[[rules]]
+type = "Text"
+globs = ["templates/*.html"]
+fallthrough = true
+
+# Non-secret config. This repo is public, so nothing that identifies a
+# person or grants access lives here: GITHUB_TOKEN and ALLOWED_SENDER are
+# both set with `wrangler secret put`, never as a [vars] entry.
+[vars]
+GITHUB_OWNER = "imsarkie"
+GITHUB_REPO = "eml2web"
+GITHUB_BRANCH = "main"
+POSTS_DIR = "posts"
+
+# Deploy steps (see README.md, "Email-triggered publishing"):
+#   1. wrangler login
+#   2. wrangler secret put GITHUB_TOKEN
+#   3. wrangler secret put ALLOWED_SENDER   (your own email address)
+#   4. wrangler deploy
+#   5. in the Cloudflare dashboard, add an Email Routing rule on the target
+#      zone that sends the chosen address to this Worker

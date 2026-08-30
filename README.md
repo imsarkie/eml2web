@@ -137,10 +137,12 @@ response were to echo it back.
 
 ## What is intentionally not implemented
 
-No database, no CMS, no admin dashboard, no authentication, no user accounts, no
-frontend framework, no Markdown parsing, no rich-text/WYSIWYG editing, no comments,
-tags, or categories, no search, no analytics, no attachment publishing, no HTML
-email rendering, and no thread/reply UI (yet - see below).
+No database, no CMS, no admin dashboard, no user accounts, no frontend framework,
+no Markdown parsing, no rich-text/WYSIWYG editing, no comments, tags, or
+categories, no search, no analytics, no attachment publishing, no HTML email
+rendering, and no thread/reply UI (yet - see below). The one exception is
+`src/allowlist.js` on the email-triggered path: a single-address, fail-closed
+sender check, not a general authentication system.
 
 If a fixture email has attachments, they are silently ignored; only the plain-text
 body is published.
@@ -159,45 +161,90 @@ different filename (e.g. because the subject was edited between sends) - see the
 means looking posts up by `Message-ID` before computing a path, still without a
 database - that's future work for the email-ingestion adapter, not this phase.
 
-## Future: Cloudflare architecture
+## Email-triggered publishing (Cloudflare)
 
-The eventual flow:
+Sending an email publishes a post, with no CLI involved:
 
 ```text
-publish@example.com
-  -> Cloudflare Email Routing
+you email publish@blog.<yourdomain>
+  -> Cloudflare Email Routing (a rule on that subdomain's DNS zone)
   -> Cloudflare Worker (src/worker.js)
+  -> isAllowedSender()  - drops anything not from you, fails closed
   -> parser.js / renderer.js / filename.js (unchanged)
-  -> github.js  (src/github.js, GitHub Contents API)
+  -> github.js  (GitHub Contents API, create-only)
   -> commit
   -> GitHub Pages serves it
 ```
 
-`src/worker.js` and `wrangler.toml` already sketch this shape, but neither is
-deployed - there's no Cloudflare account or domain wired up yet. When that phase
-happens, the Worker should only need to read the raw MIME message and call the same
-`parseEmail` / `renderPost` / `buildBaseName` / `publishToGitHub` functions the CLI
-already uses.
+`src/worker.js` is a thin adapter: it reads config from Cloudflare's `env` bindings
+instead of `process.env`, bundles `templates/post.html` as a text import (Workers
+have no filesystem, so `renderPost` accepts the template as an optional override -
+see `src/renderer.js`), and calls the exact same `parseEmail` / `renderPost` /
+`buildBaseName` / `publishToGitHub` functions the CLI uses.
+
+**Only mail whose sender exactly matches `ALLOWED_SENDER` gets published; anything
+else is silently dropped** (see `src/allowlist.js`). This fails closed: if
+`ALLOWED_SENDER` isn't configured at all, nothing publishes - it does not fall back
+to "allow everyone." Without this, the routing address would be an open publish
+endpoint for anyone who discovered it.
+
+### Setup
+
+You don't need to move your whole domain to Cloudflare - only the subdomain you
+want to receive mail on:
+
+1. **In Cloudflare**: add your publishing subdomain (e.g. `blog.yourdomain.tld`) as
+   its own zone. Cloudflare gives you two nameservers for it.
+2. **At your registrar** (wherever `yourdomain.tld`'s DNS lives): add an NS
+   delegation record for that subdomain pointing at the two Cloudflare nameservers.
+   This delegates only the subdomain - the rest of your domain is untouched.
+3. Wait for Cloudflare to detect the delegation and activate the zone.
+4. In that zone: **Email → Email Routing** → enable it → create a routing rule for
+   one specific address (e.g. `publish@blog.yourdomain.tld`) that sends matching
+   mail to a **Worker**, not to an inbox.
+5. Deploy the Worker:
+   ```bash
+   npm install -g wrangler   # or use `npx wrangler`
+   wrangler login
+   wrangler secret put GITHUB_TOKEN      # the same fine-grained token as above
+   wrangler secret put ALLOWED_SENDER    # the one address allowed to publish
+   wrangler deploy
+   ```
+   `GITHUB_OWNER` / `GITHUB_REPO` / `GITHUB_BRANCH` / `POSTS_DIR` are already set in
+   `wrangler.toml` under `[vars]` - edit them there if they differ, since they're not
+   secret. `GITHUB_TOKEN` and `ALLOWED_SENDER` are deliberately kept out of that file
+   (which is committed to a public repo) and set as Worker secrets instead.
+6. In the Email Routing rule from step 4, point it at the deployed `eml2web` Worker.
+
+From then on: emailing `publish@blog.yourdomain.tld` from your allowed address
+publishes it, automatically. Emailing any other address - including an unrelated
+mailbox on a different provider that happens to share your name - does nothing;
+Cloudflare Email Routing only intercepts mail for zones it actually controls.
+
+Not yet exercised by any test (it needs a live Cloudflare account to run at all);
+`src/allowlist.js` and the rest of the shared pipeline are covered by the regular
+test suite.
 
 ## Project layout
 
 ```text
 src/
   parser.js       - raw email -> normalized post object (uses postal-mime)
-  renderer.js     - normalized post -> escaped HTML (uses templates/post.html)
+  renderer.js     - normalized post -> escaped HTML (uses templates/post.html or an injected template)
   filename.js     - normalized post -> collision-safe "YYYY-MM-DD-slug.html"
   github.js       - publishToGitHub({ owner, repo, branch, path, content, commitMessage, token })
-  config.js       - reads GitHub settings from environment variables
+  allowlist.js    - isAllowedSender(): fail-closed sender check for the Worker
+  config.js       - reads GitHub settings from environment variables (CLI only)
   cli.js          - local command: .eml in, output/*.html out
   cli-github.js   - GitHub command: .eml in, committed to the repo via github.js
-  worker.js       - future Cloudflare Email Worker adapter (not deployed)
+  worker.js       - Cloudflare Email Worker adapter (see "Email-triggered publishing")
 templates/
   post.html       - the entire page template; edit this directly, it's plain HTML
 style.css         - the entire stylesheet for published pages
 test/
   fixtures/*.eml
-  parser.test.js, renderer.test.js, filename.test.js, github.test.js
+  parser.test.js, renderer.test.js, filename.test.js, github.test.js, allowlist.test.js
 output/           - where the local CLI writes generated pages (gitignored)
 .env.example      - GITHUB_TOKEN / GITHUB_OWNER / GITHUB_REPO / GITHUB_BRANCH
-wrangler.toml     - placeholder for the future Worker deployment
+wrangler.toml     - Worker deployment config ([vars], text-import rule for the template)
 ```
