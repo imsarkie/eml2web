@@ -2,6 +2,7 @@
 // used by the rest of the pipeline. Knows nothing about HTML, files, or Git.
 
 import PostalMime from 'postal-mime';
+import { extractTags } from './tags.js';
 
 const NO_TEXT_BODY_MESSAGE = '(no plain-text body available)';
 
@@ -32,11 +33,13 @@ export async function parseEmail(raw) {
 
   const text = typeof email.text === 'string' ? email.text : '';
   const body = text.trim().length > 0 ? text : NO_TEXT_BODY_MESSAGE;
+  const { subject, tags } = extractTags(email.subject || '');
 
   return {
     from: formatAddress(email.from),
     to: formatAddressList(email.to),
-    subject: email.subject || '',
+    subject,
+    tags,
     date: getRawHeader(email, 'date') || email.date || '',
     messageId: email.messageId || '',
     inReplyTo: email.inReplyTo || '',

@@ -12,6 +12,7 @@ import { parseEmail } from './parser.js';
 import { renderPost } from './renderer.js';
 import { buildBaseName } from './filename.js';
 import { publishToGitHub, GitHubPublishError } from './github.js';
+import { updateSiteIndex } from './publishIndex.js';
 import { config } from './config.js';
 
 async function main() {
@@ -37,9 +38,11 @@ async function main() {
   console.log(`  From: ${post.from || '(none)'}`);
   console.log(`  Subject: ${post.subject || '(none)'}`);
   console.log(`  Date: ${post.date || '(none)'}`);
+  if (post.tags.length) console.log(`  Tags: ${post.tags.join(', ')}`);
   console.log('');
 
-  const repoPath = `${postsDir}/${buildBaseName(post)}.html`;
+  const filename = `${buildBaseName(post)}.html`;
+  const repoPath = `${postsDir}/${filename}`;
   const html = renderPost(post);
 
   console.log('Generated:');
@@ -63,6 +66,17 @@ async function main() {
   console.log('Success:');
   console.log(`  commit: ${result.commitSha}`);
   console.log(`  path: ${result.path}`);
+  console.log('');
+
+  console.log('Updating index:');
+  await updateSiteIndex({
+    owner,
+    repo,
+    branch,
+    token,
+    entry: { filename, subject: post.subject, date: post.date, tags: post.tags }
+  });
+  console.log('  posts.json and index.html updated');
 }
 
 main().catch((err) => {

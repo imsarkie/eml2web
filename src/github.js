@@ -108,8 +108,8 @@ async function request(fetchImpl, url, options) {
   }
 }
 
-// Returns the file's sha if it already exists on `branch`, or null.
-async function findExistingFile({ owner, repo, branch, path, token, fetchImpl }) {
+// Returns { sha, content } for a file that exists on `branch`, or null.
+async function getFile({ owner, repo, branch, path, token, fetchImpl }) {
   const url = `${API_ROOT}/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`;
   const res = await request(fetchImpl, url, { headers: authHeaders(token) });
 
@@ -117,42 +117,39 @@ async function findExistingFile({ owner, repo, branch, path, token, fetchImpl })
   if (!res.ok) throw await classifyErrorResponse(res, { token, owner, repo });
 
   const data = await res.json();
-  return data.sha || null;
+  return {
+    sha: data.sha || null,
+    content: typeof data.content === 'string' ? Buffer.from(data.content, 'base64').toString('utf8') : ''
+  };
 }
 
-export async function publishToGitHub({
-  owner,
-  repo,
-  branch = 'main',
-  path,
-  content,
-  commitMessage,
-  token,
-  fetchImpl = fetch
-}) {
+// Public read helper: for callers (posts.json, index.html regeneration)
+// that need the current content of a file before updating it.
+export async function getFileFromGitHub({ owner, repo, branch = 'main', path, token, fetchImpl = fetch }) {
+  validateConfig({ token, owner, repo });
+  return getFile({ owner, repo, branch, path, token, fetchImpl });
+}
+
+// Returns the file's sha if it already exists on `branch`, or null.
+async function findExistingFile(args) {
+  const file = await getFile(args);
+  return file ? file.sha : null;
+}
+
+function validateConfig({ token, owner, repo }) {
   if (!token) {
     throw new GitHubPublishError('GitHub publish failed: no token provided. Set GITHUB_TOKEN.', {
       code: 'AUTH_FAILED'
     });
   }
   if (!owner || !repo) {
-    throw new GitHubPublishError(
-      'GitHub publish failed: GITHUB_OWNER and GITHUB_REPO are required.',
-      { code: 'CONFIG_ERROR' }
-    );
+    throw new GitHubPublishError('GitHub publish failed: GITHUB_OWNER and GITHUB_REPO are required.', {
+      code: 'CONFIG_ERROR'
+    });
   }
+}
 
-  // Publication is create-only: never silently overwrite an already
-  // published message, and never fall back to the CLI's local -2/-3
-  // filename-collision behavior for a remote publish.
-  const existingSha = await findExistingFile({ owner, repo, branch, path, token, fetchImpl });
-  if (existingSha) {
-    throw new GitHubPublishError(
-      `GitHub publish refused: "${path}" already exists on branch "${branch}". Refusing to overwrite a published message.`,
-      { code: 'ALREADY_PUBLISHED' }
-    );
-  }
-
+async function putFile({ owner, repo, branch, path, content, commitMessage, token, fetchImpl, sha }) {
   const url = `${API_ROOT}/repos/${owner}/${repo}/contents/${path}`;
   const res = await request(fetchImpl, url, {
     method: 'PUT',
@@ -160,7 +157,8 @@ export async function publishToGitHub({
     body: JSON.stringify({
       message: commitMessage,
       content: Buffer.from(content, 'utf8').toString('base64'),
-      branch
+      branch,
+      ...(sha ? { sha } : {})
     })
   });
 
@@ -174,4 +172,49 @@ export async function publishToGitHub({
     commitSha: data.commit?.sha ?? null,
     commitUrl: data.commit?.html_url ?? null
   };
+}
+
+// Create-only: refuses to touch a path that already exists. This is the
+// right behavior for individual published posts - never silently
+// overwrite one, and never fall back to the CLI's local -2/-3
+// filename-collision behavior for a remote publish.
+export async function publishToGitHub({
+  owner,
+  repo,
+  branch = 'main',
+  path,
+  content,
+  commitMessage,
+  token,
+  fetchImpl = fetch
+}) {
+  validateConfig({ token, owner, repo });
+
+  const existingSha = await findExistingFile({ owner, repo, branch, path, token, fetchImpl });
+  if (existingSha) {
+    throw new GitHubPublishError(
+      `GitHub publish refused: "${path}" already exists on branch "${branch}". Refusing to overwrite a published message.`,
+      { code: 'ALREADY_PUBLISHED' }
+    );
+  }
+
+  return putFile({ owner, repo, branch, path, content, commitMessage, token, fetchImpl });
+}
+
+// Create-or-update: for files that are meant to always reflect current
+// state (posts.json, index.html), unlike a published post's own page.
+export async function upsertToGitHub({
+  owner,
+  repo,
+  branch = 'main',
+  path,
+  content,
+  commitMessage,
+  token,
+  fetchImpl = fetch
+}) {
+  validateConfig({ token, owner, repo });
+
+  const existingSha = await findExistingFile({ owner, repo, branch, path, token, fetchImpl });
+  return putFile({ owner, repo, branch, path, content, commitMessage, token, fetchImpl, sha: existingSha });
 }

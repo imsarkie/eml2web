@@ -24,11 +24,13 @@ This is not a blogging platform, a CMS, or a general-purpose archive. It is inte
 ```text
 input: an .eml file
   1. parser.js    - parses raw MIME with postal-mime, extracts headers + plain-text body
-  2. (normalized post object: from, to, subject, date, messageId, inReplyTo, references, body)
+     tags.js       - pulls "#word" tags out of the subject (see "Tags and the index page")
+  2. (normalized post object: from, to, subject, tags, date, messageId, inReplyTo, references, body)
   3. filename.js   - builds a deterministic "YYYY-MM-DD-slug.html" name
   4. renderer.js   - HTML-escapes every field and fills in templates/post.html
-  5a. cli.js        - writes the result to output/ (local, collision-safe: -2, -3, ...)
-  5b. cli-github.js - commits the result to a GitHub repo via github.js (create-only)
+  5a. cli.js        - writes the result to output/posts/ and regenerates output/index.html
+  5b. cli-github.js - commits the result to posts/ in a GitHub repo (create-only), then
+                      updates posts.json and index.html there too
 ```
 
 Each stage is a plain function with no knowledge of the others:
@@ -53,9 +55,18 @@ node src/cli.js ./test/fixtures/sample.eml
 npm run publish -- ./test/fixtures/sample.eml
 ```
 
-Output appears in `output/`, e.g. `output/2026-08-30-why-i-still-use-unix.html`.
-Re-running against the same email never overwrites an existing file - it appends
-`-2`, `-3`, etc. to the filename instead.
+Output appears in `output/`:
+
+```text
+output/
+  posts/2026-08-30-why-i-still-use-unix.html   - the rendered post
+  posts.json                                    - manifest: [{ filename, subject, date, tags }, ...]
+  index.html                                    - regenerated from posts.json on every publish
+```
+
+Re-running against the same email never overwrites an existing post file - it
+appends `-2`, `-3`, etc. to the filename instead. `posts.json` and `index.html` are
+always regenerated in full from the current manifest, so they never go stale.
 
 ## GitHub publishing
 
@@ -88,7 +99,8 @@ GITHUB_TOKEN=ghp_xxx GITHUB_OWNER=octocat GITHUB_REPO=archive \
 ```
 
 This commits to `posts/<date>-<slug>.html` in the target repo, with a commit message
-like `Publish: Why I still use Unix`.
+like `Publish: Why I still use Unix`, then updates `posts.json` and `index.html` at
+the repo root to include it (see "Tags and the index page" below).
 
 **Publishing is create-only.** Before writing, it checks whether the target path
 already exists on the branch; if it does, it refuses to overwrite it and exits
@@ -105,6 +117,30 @@ commit a token to the repo; `.env` is gitignored.
 GitHub publishing is intentionally its own adapter (`src/cli-github.js` +
 `src/github.js`), separate from Cloudflare Email Routing. That phase isn't built
 yet - see "Future: Cloudflare architecture" below.
+
+## Tags and the index page
+
+Put `#word` anywhere in an email's subject to tag it, e.g.:
+
+```text
+Subject: Why I still use Unix #unix #philosophy
+```
+
+`src/tags.js` pulls those out (lowercased, deduped) and strips them from the
+subject everywhere else - the post's title, its own page, and the filename slug
+all show the clean "Why I still use Unix", not the raw subject with hashtags in
+it. The tags themselves are shown on the post's own page (a `Tags:` meta line)
+and drive the site root.
+
+`index.html` at the repo root groups every post by tag, alphabetically, newest
+post first within each tag (`src/siteIndex.js`); an untagged post lands in an
+"Uncategorized" section at the end, rather than being dropped from the index.
+It's regenerated in full on every publish - not hand-maintained - from
+`posts.json`, a flat array of `{ filename, subject, date, tags }` per post
+(`src/manifest.js`). That file is plain data, not a database: no queries, no
+server, just something `index.html` gets rebuilt from. `posts/` itself holds
+only the emailed posts' own HTML - the manifest and index live at the repo root,
+next to `style.css`.
 
 ## Run the tests
 
@@ -138,11 +174,12 @@ response were to echo it back.
 ## What is intentionally not implemented
 
 No database, no CMS, no admin dashboard, no user accounts, no frontend framework,
-no Markdown parsing, no rich-text/WYSIWYG editing, no comments, tags, or
-categories, no search, no analytics, no attachment publishing, no HTML email
-rendering, and no thread/reply UI (yet - see below). The one exception is
-`src/allowlist.js` on the email-triggered path: a single-address, fail-closed
-sender check, not a general authentication system.
+no Markdown parsing, no rich-text/WYSIWYG editing, no comments, no search, no
+analytics, no attachment publishing, no HTML email rendering, and no thread/reply
+UI (yet - see below). Two exceptions: `src/allowlist.js` on the email-triggered
+path (a single-address, fail-closed sender check, not a general authentication
+system), and tags/the index page (a subject-line convention plus a flat JSON
+manifest, not a database or CMS - see "Tags and the index page").
 
 If a fixture email has attachments, they are silently ignored; only the plain-text
 body is published.
@@ -171,16 +208,18 @@ you email publish@blog.<yourdomain>
   -> Cloudflare Worker (src/worker.js)
   -> isAllowedSender()  - drops anything not from you, fails closed
   -> parser.js / renderer.js / filename.js (unchanged)
-  -> github.js  (GitHub Contents API, create-only)
+  -> github.js  (GitHub Contents API: publishToGitHub, create-only)
   -> commit
-  -> GitHub Pages serves it
+  -> publishIndex.js (updateSiteIndex: posts.json + index.html, create-or-update)
+  -> GitHub Pages serves both
 ```
 
 `src/worker.js` is a thin adapter: it reads config from Cloudflare's `env` bindings
-instead of `process.env`, bundles `templates/post.html` as a text import (Workers
-have no filesystem, so `renderPost` accepts the template as an optional override -
-see `src/renderer.js`), and calls the exact same `parseEmail` / `renderPost` /
-`buildBaseName` / `publishToGitHub` functions the CLI uses.
+instead of `process.env`, bundles `templates/post.html` and `templates/index.html`
+as text imports (Workers have no filesystem, so `renderPost`/`renderIndex` accept
+the template as an optional override - see `src/renderer.js` / `src/siteIndex.js`),
+and calls the exact same `parseEmail` / `renderPost` / `buildBaseName` /
+`publishToGitHub` / `updateSiteIndex` functions the CLI uses.
 
 **Only mail whose sender exactly matches `ALLOWED_SENDER` gets published; anything
 else is silently dropped** (see `src/allowlist.js`). This fails closed: if
@@ -229,22 +268,28 @@ test suite.
 
 ```text
 src/
-  parser.js       - raw email -> normalized post object (uses postal-mime)
+  parser.js       - raw email -> normalized post object (uses postal-mime, tags.js)
+  tags.js         - extractTags(): pulls "#word" tags out of a subject
   renderer.js     - normalized post -> escaped HTML (uses templates/post.html or an injected template)
+  siteIndex.js    - manifest -> the tag-grouped index.html (uses templates/index.html)
+  manifest.js     - parse/append/serialize posts.json
+  publishIndex.js - shared "update posts.json + index.html on GitHub" step
   filename.js     - normalized post -> collision-safe "YYYY-MM-DD-slug.html"
-  github.js       - publishToGitHub({ owner, repo, branch, path, content, commitMessage, token })
+  github.js       - publishToGitHub (create-only) / upsertToGitHub (create-or-update)
   allowlist.js    - isAllowedSender(): fail-closed sender check for the Worker
   config.js       - reads GitHub settings from environment variables (CLI only)
-  cli.js          - local command: .eml in, output/*.html out
+  cli.js          - local command: .eml in, output/{posts/,posts.json,index.html} out
   cli-github.js   - GitHub command: .eml in, committed to the repo via github.js
   worker.js       - Cloudflare Email Worker adapter (see "Email-triggered publishing")
 templates/
-  post.html       - the entire page template; edit this directly, it's plain HTML
+  post.html       - the per-post page template; edit this directly, it's plain HTML
+  index.html      - the site-root template; {{SECTIONS}} is filled in by siteIndex.js
 style.css         - the entire stylesheet for published pages
 test/
   fixtures/*.eml
-  parser.test.js, renderer.test.js, filename.test.js, github.test.js, allowlist.test.js
+  parser.test.js, renderer.test.js, filename.test.js, github.test.js, allowlist.test.js,
+  tags.test.js, manifest.test.js, siteIndex.test.js
 output/           - where the local CLI writes generated pages (gitignored)
 .env.example      - GITHUB_TOKEN / GITHUB_OWNER / GITHUB_REPO / GITHUB_BRANCH
-wrangler.toml     - Worker deployment config ([vars], text-import rule for the template)
+wrangler.toml     - Worker deployment config ([vars], text-import rule for the templates)
 ```

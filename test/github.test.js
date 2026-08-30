@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { publishToGitHub, GitHubPublishError } from '../src/github.js';
+import { publishToGitHub, upsertToGitHub, GitHubPublishError } from '../src/github.js';
 
 function fakeResponse({ ok, status, json, text }) {
   return {
@@ -210,4 +210,30 @@ test('rejects up front when required config is missing, without making any reque
     return true;
   });
   assert.equal(calls.length, 0);
+});
+
+test('upsertToGitHub creates the file when it does not exist yet, without a sha', async () => {
+  const { calls, fetchImpl } = makeFetch({
+    GET: [fakeResponse({ ok: false, status: 404, text: 'Not Found' })],
+    PUT: [fakeResponse({ ok: true, status: 201, json: { content: {}, commit: {} } })]
+  });
+
+  await upsertToGitHub({ ...basePublishArgs, path: 'posts.json', fetchImpl });
+
+  const putBody = JSON.parse(calls[1].options.body);
+  assert.equal('sha' in putBody, false);
+});
+
+test('upsertToGitHub updates the file (with its sha) when it already exists, instead of refusing', async () => {
+  const { calls, fetchImpl } = makeFetch({
+    GET: [fakeResponse({ ok: true, status: 200, json: { sha: 'existing-sha' } })],
+    PUT: [fakeResponse({ ok: true, status: 200, json: { content: {}, commit: {} } })]
+  });
+
+  const result = await upsertToGitHub({ ...basePublishArgs, path: 'posts.json', fetchImpl });
+
+  assert.equal(calls.length, 2, 'upsert must proceed to PUT even when the file exists');
+  const putBody = JSON.parse(calls[1].options.body);
+  assert.equal(putBody.sha, 'existing-sha');
+  assert.ok(result);
 });

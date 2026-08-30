@@ -40,6 +40,7 @@ export function renderPost(post, { template } = {}) {
     metaLine('From', post.from),
     metaLine('To', post.to),
     metaLine('Subject', post.subject),
+    metaLine('Tags', Array.isArray(post.tags) && post.tags.length ? post.tags.join(', ') : ''),
     metaLine('Date', post.date),
     metaLine('Message-ID', post.messageId),
     metaLine('In-Reply-To', post.inReplyTo),

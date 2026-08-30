@@ -9,6 +9,33 @@ body {
   line-height: 1.5;
 }
 
+.site-nav {
+  margin-bottom: 1.5em;
+}
+
+.site-nav a {
+  margin-right: 1em;
+}
+
+h1 {
+  font-size: 1.2em;
+  margin-bottom: 1em;
+}
+
+section {
+  margin-bottom: 2em;
+}
+
+section h2 {
+  font-size: 1em;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 0.3em;
+}
+
+section ul {
+  padding-left: 1.2em;
+}
+
 .email-meta {
   color: #444;
 }
