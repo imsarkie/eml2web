@@ -40,7 +40,11 @@ function authHeaders(token) {
   return {
     Authorization: `Bearer ${token}`,
     Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28'
+    'X-GitHub-Api-Version': '2022-11-28',
+    // GitHub's API rejects requests with no User-Agent (403). Node's
+    // fetch sets one automatically; the Cloudflare Workers runtime
+    // doesn't, so this needs to be explicit for both to work the same.
+    'User-Agent': 'eml2web'
   };
 }
 
