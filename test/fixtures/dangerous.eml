@@ -1,0 +1,12 @@
+From: "<script>alert(1)</script>" <evil@example.com>
+To: victim@example.com
+Subject: <script>alert("x")</script> & <b>bold</b>
+Date: Wed, 02 Sep 2026 12:00:00 -0700
+Message-ID: <"><img src=x onerror=alert(1)>@example.com>
+Content-Type: text/plain; charset=utf-8
+
+<script>alert("x")</script>
+
+He said "hello" & <b>waved</b>.
+
+$1 discount & 100% off <not-a-tag>

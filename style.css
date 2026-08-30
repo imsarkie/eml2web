@@ -1,0 +1,36 @@
+body {
+  max-width: 40em;
+  margin: 3em auto;
+  padding: 0 1em;
+  background: #fff;
+  color: #111;
+  font-family: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.email-meta {
+  color: #444;
+}
+
+.email-meta div {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #ccc;
+  margin: 1.5em 0;
+}
+
+.email-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+a {
+  color: #0000cc;
+}

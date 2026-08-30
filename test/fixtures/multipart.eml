@@ -1,0 +1,30 @@
+From: Jane Doe <jane@example.com>
+To: Sarky <sarky@example.com>, list@example.com
+Subject: Re: Why I still use Unix
+Date: Mon, 31 Aug 2026 10:15:00 -0700
+Message-ID: <multipart-001@example.com>
+In-Reply-To: <sample-001@example.com>
+References: <sample-001@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="BOUNDARY123"
+
+--BOUNDARY123
+Content-Type: text/plain; charset=utf-8
+
+Agreed. Plain text has aged well.
+
+Some reasons:
+  - it's greppable
+  - it's diffable
+  - it doesn't rot
+
+--BOUNDARY123
+Content-Type: text/html; charset=utf-8
+
+<html><body><p>Agreed. Plain text has aged well.</p>
+<p>Some reasons:</p>
+<ul><li>it's greppable</li><li>it's diffable</li><li>it doesn't rot</li></ul>
+<script>alert('should never appear in output')</script>
+</body></html>
+
+--BOUNDARY123--

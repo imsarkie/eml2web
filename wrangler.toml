@@ -1,0 +1,10 @@
+name = "eml2web"
+main = "src/worker.js"
+compatibility_date = "2026-08-30"
+
+# Not deployed yet. This exists to hold the shape of the future
+# Cloudflare Email Routing -> Worker -> GitHub publish path (see
+# README.md, "Future Cloudflare architecture"). Once that phase is
+# built, this file will need:
+#   - an [[send_email]] or email routing binding
+#   - a GITHUB_TOKEN secret (via `wrangler secret put GITHUB_TOKEN`)
