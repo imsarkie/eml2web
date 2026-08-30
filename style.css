@@ -42,7 +42,7 @@ section ul {
 
 .email-meta div {
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 hr {
@@ -53,11 +53,28 @@ hr {
 
 .email-body {
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   font-family: inherit;
   font-size: inherit;
 }
 
 a {
   color: #0000cc;
+}
+
+footer {
+  margin-top: 3em;
+  color: #666;
+  font-size: 0.9em;
+}
+
+footer hr {
+  margin-bottom: 1em;
+}
+
+@media (max-width: 600px) {
+  body {
+    margin: 1em 0.75em;
+    font-size: 14px;
+  }
 }

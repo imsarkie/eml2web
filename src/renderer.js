@@ -4,6 +4,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { escapeHtml } from './html.js';
+import { formatBody } from './inlineFormat.js';
 
 // Computed lazily, not at module load: import.meta.url isn't a usable
 // file:// URL in the Cloudflare Worker runtime, and that environment
@@ -13,17 +15,7 @@ function defaultTemplatePath() {
   return path.join(__dirname, '..', 'templates', 'post.html');
 }
 
-const ESCAPE_MAP = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;'
-};
-
-export function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (ch) => ESCAPE_MAP[ch]);
-}
+export { escapeHtml };
 
 function metaLine(label, value) {
   if (!value) return '';
@@ -57,5 +49,5 @@ export function renderPost(post, { template } = {}) {
   return templateText
     .replace('{{TITLE}}', () => escapeHtml(title))
     .replace('{{META}}', () => meta)
-    .replace('{{BODY}}', () => escapeHtml(post.body));
+    .replace('{{BODY}}', () => formatBody(post.body));
 }
