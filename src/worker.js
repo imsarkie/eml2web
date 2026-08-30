@@ -7,16 +7,16 @@
 // not process.env - the Workers runtime has no process.env of its own.
 
 // Bundled as raw text by the `[[rules]]` entry in wrangler.toml - there is
-// no filesystem here, so templates/post.html and templates/index.html
+// no filesystem here, so templates/post.html and templates/archive.html
 // can't be read with node:fs.
 import templateHtml from '../templates/post.html';
-import indexTemplateHtml from '../templates/index.html';
+import archiveTemplateHtml from '../templates/archive.html';
 
 import { parseEmail } from './parser.js';
 import { renderPost } from './renderer.js';
 import { buildBaseName } from './filename.js';
 import { publishToGitHub, GitHubPublishError } from './github.js';
-import { updateSiteIndex } from './publishIndex.js';
+import { updateArchive } from './publishArchive.js';
 import { isAllowedSender } from './allowlist.js';
 
 export default {
@@ -52,15 +52,15 @@ export default {
       });
       console.log(`Published ${result.path} (commit ${result.commitSha})`);
 
-      await updateSiteIndex({
+      await updateArchive({
         owner,
         repo,
         branch,
         token,
         entry: { filename, subject: post.subject, date: post.date, tags: post.tags },
-        indexTemplate: indexTemplateHtml
+        archiveTemplate: archiveTemplateHtml
       });
-      console.log('posts.json and index.html updated');
+      console.log('posts.json and archive.html updated');
     } catch (err) {
       // GitHubPublishError messages are already safe to log (no token).
       console.error(err instanceof GitHubPublishError ? err.message : `Publish failed: ${err.message}`);

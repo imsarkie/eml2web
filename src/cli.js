@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 // Local command: read an .eml file, write the rendered HTML to output/,
-// and regenerate the tag-grouped index from output/posts.json.
+// and regenerate the tag-grouped archive from output/posts.json.
 // Usage: node src/cli.js ./path/to/message.eml
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseEmail } from './parser.js';
 import { renderPost } from './renderer.js';
-import { renderIndex } from './siteIndex.js';
+import { renderArchive } from './archive.js';
 import { resolveFilename } from './filename.js';
 import { parseManifest, addManifestEntry, serializeManifest } from './manifest.js';
 
 const OUTPUT_DIR = path.join(process.cwd(), 'output');
 const POSTS_DIR = path.join(OUTPUT_DIR, 'posts');
 const MANIFEST_PATH = path.join(OUTPUT_DIR, 'posts.json');
-const INDEX_PATH = path.join(OUTPUT_DIR, 'index.html');
+const ARCHIVE_PATH = path.join(OUTPUT_DIR, 'archive.html');
 
 async function main() {
   const inputPath = process.argv[2];
@@ -46,11 +46,11 @@ async function main() {
     tags: post.tags
   });
   fs.writeFileSync(MANIFEST_PATH, serializeManifest(manifest));
-  fs.writeFileSync(INDEX_PATH, renderIndex(manifest));
+  fs.writeFileSync(ARCHIVE_PATH, renderArchive(manifest));
 
   console.log('Generated:');
   console.log(`  output/posts/${filename}`);
-  console.log('  output/index.html (updated)');
+  console.log('  output/archive.html (updated)');
 }
 
 main().catch((err) => {

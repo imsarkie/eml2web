@@ -1,7 +1,6 @@
 body {
-  max-width: 40em;
-  margin: 3em auto;
-  padding: 0 1em;
+  max-width: 60em;
+  margin: 2em 1.5em;
   background: #fff;
   color: #111;
   font-family: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
@@ -10,11 +9,12 @@ body {
 }
 
 .site-nav {
-  margin-bottom: 1.5em;
+  margin-bottom: 0.8em;
 }
 
 .site-nav a {
   margin-right: 1em;
+  text-decoration: underline;
 }
 
 h1 {

@@ -1,7 +1,12 @@
-// Renders the site root index.html: posts grouped by tag, tag from the
-// "#word" convention parsed in tags.js. Reads templates/index.html the
-// same way renderer.js reads templates/post.html - from disk locally, or
-// from an injected `template` string in the Worker (no filesystem there).
+// Renders archive.html: posts grouped by tag, tag from the "#word"
+// convention parsed in tags.js. Reads templates/archive.html the same way
+// renderer.js reads templates/post.html - from disk locally, or from an
+// injected `template` string in the Worker (no filesystem there).
+//
+// archive.html is separate from index.html: index.html is the static
+// Home page GitHub Pages serves at "/", hand-edited like any other
+// template. archive.html is the one auto-generated page, rebuilt from
+// posts.json on every publish.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +15,7 @@ import { escapeHtml } from './renderer.js';
 
 function defaultTemplatePath() {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  return path.join(__dirname, '..', 'templates', 'index.html');
+  return path.join(__dirname, '..', 'templates', 'archive.html');
 }
 
 const UNTAGGED_LABEL = 'Uncategorized';
@@ -40,7 +45,7 @@ function renderSection(tagLabel, posts) {
   return `<section>\n  <h2>${escapeHtml(tagLabel)}</h2>\n  <ul>\n${items}\n  </ul>\n</section>`;
 }
 
-export function renderIndex(manifest, { template } = {}) {
+export function renderArchive(manifest, { template } = {}) {
   const templateText = template ?? fs.readFileSync(defaultTemplatePath(), 'utf8');
   const groups = groupByTag(manifest);
 

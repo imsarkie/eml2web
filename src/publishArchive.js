@@ -1,16 +1,17 @@
-// After a post is published to GitHub, keep posts.json and index.html in
+// After a post is published to GitHub, keep posts.json and archive.html in
 // sync with it. Shared by cli-github.js and worker.js so the "read
-// current manifest, append, regenerate index, upsert both" sequence only
-// lives in one place.
+// current manifest, append, regenerate archive, upsert both" sequence
+// only lives in one place. index.html (the Home page) and about.html are
+// static and hand-edited - this never touches them.
 
 import { getFileFromGitHub, upsertToGitHub } from './github.js';
 import { parseManifest, addManifestEntry, serializeManifest } from './manifest.js';
-import { renderIndex } from './siteIndex.js';
+import { renderArchive } from './archive.js';
 
 const MANIFEST_PATH = 'posts.json';
-const INDEX_PATH = 'index.html';
+const ARCHIVE_PATH = 'archive.html';
 
-export async function updateSiteIndex({ owner, repo, branch, token, fetchImpl, entry, indexTemplate }) {
+export async function updateArchive({ owner, repo, branch, token, fetchImpl, entry, archiveTemplate }) {
   const existingManifestFile = await getFileFromGitHub({
     owner,
     repo,
@@ -37,9 +38,9 @@ export async function updateSiteIndex({ owner, repo, branch, token, fetchImpl, e
     owner,
     repo,
     branch,
-    path: INDEX_PATH,
-    content: renderIndex(manifest, { template: indexTemplate }),
-    commitMessage: `Update index.html: ${entry.filename}`,
+    path: ARCHIVE_PATH,
+    content: renderArchive(manifest, { template: archiveTemplate }),
+    commitMessage: `Update archive.html: ${entry.filename}`,
     token,
     fetchImpl
   });

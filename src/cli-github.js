@@ -12,7 +12,7 @@ import { parseEmail } from './parser.js';
 import { renderPost } from './renderer.js';
 import { buildBaseName } from './filename.js';
 import { publishToGitHub, GitHubPublishError } from './github.js';
-import { updateSiteIndex } from './publishIndex.js';
+import { updateArchive } from './publishArchive.js';
 import { config } from './config.js';
 
 async function main() {
@@ -68,15 +68,15 @@ async function main() {
   console.log(`  path: ${result.path}`);
   console.log('');
 
-  console.log('Updating index:');
-  await updateSiteIndex({
+  console.log('Updating archive:');
+  await updateArchive({
     owner,
     repo,
     branch,
     token,
     entry: { filename, subject: post.subject, date: post.date, tags: post.tags }
   });
-  console.log('  posts.json and index.html updated');
+  console.log('  posts.json and archive.html updated');
 }
 
 main().catch((err) => {

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>eml2web</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav class="site-nav"><a href="/">Home</a> <a href="/archive.html">Index</a> <a href="/about.html">About</a></nav>
+<hr>
+
+<h1>eml2web</h1>
+
+<p>This is a small publishing pipeline: an email becomes a page here.</p>
+
+<pre>email -&gt; parser -&gt; HTML -&gt; GitHub -&gt; GitHub Pages</pre>
+
+<p>
+There is no CMS, no editor, no dashboard. Writing an email and sending it
+<em>is</em> the act of publishing. The email's plain-text body is escaped and
+dropped into a bare <code>&lt;pre&gt;</code> block, next to its own headers
+(From, Subject, Date, ...) - nothing is reformatted or reinterpreted along
+the way.
+</p>
+
+<p>
+Adding <code>#word</code> anywhere in an email's subject tags the post; the
+<a href="/archive.html">Index</a> groups every post by tag.
+</p>
+
+<p>
+Inspired by old plain-text email archives like
+<a href="https://yarchive.net/comp/bsd.html">yarchive.net</a>.
+</p>
+
+<p>See the <a href="/archive.html">Index</a> for all posts, or <a href="/about.html">About</a> for who's writing them.</p>
+
+</body>
+</html>
