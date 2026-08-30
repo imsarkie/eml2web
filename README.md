@@ -153,6 +153,25 @@ That file is plain data, not a database: no queries, no server, just something
 own HTML - the manifest and archive live at the repo root, next to `index.html`,
 `about.html`, and `style.css`.
 
+### Inline formatting
+
+The body is still plain text preserved in a `<pre>` block - not Markdown, not
+HTML - but three narrow, predictable substitutions are applied (`src/inlineFormat.js`):
+
+```text
+**bold** or __bold__      -> <strong>
+*italic* or _italic_      -> <em>
+<https://example.com>     -> a link (bracket-wrapped, brackets dropped)
+bare https://example.com  -> a link
+```
+
+That's it - no lists, headers, or blockquotes get converted. Single and double
+delimiters are deliberately different (matching standard Markdown, not any one
+mail client's plain-text-export convention), so both can be used unambiguously in
+the same email. Links are resolved before emphasis, so a `_` or `&` that's
+legitimately part of a URL can never be misread as emphasis syntax or corrupt an
+`href`. Nesting (bold containing italic, etc.) isn't supported.
+
 ## Run the tests
 
 ```bash

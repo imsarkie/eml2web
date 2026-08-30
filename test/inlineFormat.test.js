@@ -2,12 +2,27 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { formatBody } from '../src/inlineFormat.js';
 
-test('converts *word* to <strong>', () => {
-  assert.equal(formatBody('*Pick a window seat.*'), '<strong>Pick a window seat.</strong>');
+test('converts *word* (single) to <em> (italic)', () => {
+  assert.equal(formatBody('*Pick a window seat.*'), '<em>Pick a window seat.</em>');
 });
 
-test('converts _word_ to <em>', () => {
+test('converts _word_ (single) to <em> (italic)', () => {
   assert.equal(formatBody('this is _important_ here'), 'this is <em>important</em> here');
+});
+
+test('converts **word** (double) to <strong> (bold)', () => {
+  assert.equal(formatBody('**Pick a window seat.**'), '<strong>Pick a window seat.</strong>');
+});
+
+test('converts __word__ (double) to <strong> (bold)', () => {
+  assert.equal(formatBody('this is __important__ here'), 'this is <strong>important</strong> here');
+});
+
+test('a single email can mix bold and italic unambiguously', () => {
+  assert.equal(
+    formatBody('**bold** and *italic* and __also bold__ and _also italic_'),
+    '<strong>bold</strong> and <em>italic</em> and <strong>also bold</strong> and <em>also italic</em>'
+  );
 });
 
 test('a lone, unpaired "*" is left alone rather than matched against something far away', () => {
@@ -59,16 +74,16 @@ test('a plain number in prose is not mistaken for a link placeholder', () => {
 });
 
 test('dangerous HTML stays escaped and inert even inside emphasis or near a link', () => {
-  const html = formatBody('<script>alert(1)</script> *bold <script>* still safe');
+  const html = formatBody('<script>alert(1)</script> *italic <script>* still safe');
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
-  assert.match(html, /<strong>bold &lt;script&gt;<\/strong>/);
+  assert.match(html, /<em>italic &lt;script&gt;<\/em>/);
 });
 
-test('a bold span wrapping a link nests correctly', () => {
+test('an italic span wrapping a link nests correctly', () => {
   assert.equal(
     formatBody('*see <https://example.com>*'),
-    '<strong>see <a href="https://example.com">https://example.com</a></strong>'
+    '<em>see <a href="https://example.com">https://example.com</a></em>'
   );
 });
 
