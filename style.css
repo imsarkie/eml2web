@@ -3,9 +3,24 @@ body {
   margin: 2em 1.5em;
   background: #fff;
   color: #111;
-  font-family: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Post pages only: a monospace font for the email itself, matching the
+   plain-text-archive feel. Every other page (Home, Index, About) stays
+   serif, set above. */
+.post-page {
+  font-family: "JetBrains Mono", "Courier New", Courier, monospace;
   font-size: 15px;
   line-height: 1.5;
+}
+
+/* Code/diagram snippets stay monospace even on serif pages. */
+pre,
+code {
+  font-family: "JetBrains Mono", "Courier New", Courier, monospace;
 }
 
 .site-nav {
