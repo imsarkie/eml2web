@@ -20,6 +20,17 @@ function formatAddressList(list) {
   return list.map(formatAddress).filter(Boolean).join(', ');
 }
 
+// Just the sender's display name, with no "<address>" - for the archive
+// index's "(Author)" listing (src/archive.js), not the post page itself
+// (which shows the full `from` address in its meta block).
+function authorName(addr) {
+  if (!addr) return '';
+  if (addr.group) {
+    return addr.group.map(authorName).filter(Boolean).join(', ');
+  }
+  return addr.name || addr.address || '';
+}
+
 // postal-mime normalizes `date` to ISO 8601. Prefer the raw Date header
 // for display, since old-school archives read better with the original
 // "Sun, 30 Aug 2026 10:00:00 -0700" style formatting.
@@ -37,6 +48,7 @@ export async function parseEmail(raw) {
 
   return {
     from: formatAddress(email.from),
+    author: authorName(email.from),
     to: formatAddressList(email.to),
     subject,
     tags,

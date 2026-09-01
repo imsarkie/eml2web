@@ -69,3 +69,35 @@ test('shows a placeholder when there are no posts yet', () => {
   const html = renderArchive([], { template: baseTemplate });
   assert.match(html, /No posts yet\./);
 });
+
+test('renders "Title (Author) [N bytes]" per entry, yarchive.net-style', () => {
+  const manifest = [
+    { filename: '2026-08-30-a.html', subject: 'Post A', date: '2026-08-30', tags: [], author: 'Jane Doe', size: 1234 }
+  ];
+  const html = renderArchive(manifest, { template: baseTemplate });
+  assert.match(
+    html,
+    /<a href="posts\/2026-08-30-a\.html">Post A<\/a> \(Jane Doe\) \[1234 bytes\]/
+  );
+});
+
+test('omits "(Author)" and "[N bytes]" when a manifest entry predates those fields', () => {
+  const manifest = [{ filename: '2026-08-30-a.html', subject: 'Post A', date: '2026-08-30', tags: [] }];
+  const html = renderArchive(manifest, { template: baseTemplate });
+  assert.match(html, /<a href="posts\/2026-08-30-a\.html">Post A<\/a><\/li>/);
+});
+
+test('escapes a dangerous author name', () => {
+  const manifest = [
+    {
+      filename: '2026-08-30-a.html',
+      subject: 'Post A',
+      date: '2026-08-30',
+      tags: [],
+      author: '<script>alert(1)</script>'
+    }
+  ];
+  const html = renderArchive(manifest, { template: baseTemplate });
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+});

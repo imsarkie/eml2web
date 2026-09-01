@@ -8,6 +8,7 @@ import path from 'node:path';
 import { parseEmail } from './parser.js';
 import { renderPost } from './renderer.js';
 import { renderArchive } from './archive.js';
+import { renderFeed } from './feed.js';
 import { resolveFilename } from './filename.js';
 import { parseManifest, addManifestEntry, serializeManifest } from './manifest.js';
 
@@ -15,6 +16,7 @@ const OUTPUT_DIR = path.join(process.cwd(), 'output');
 const POSTS_DIR = path.join(OUTPUT_DIR, 'posts');
 const MANIFEST_PATH = path.join(OUTPUT_DIR, 'posts.json');
 const ARCHIVE_PATH = path.join(OUTPUT_DIR, 'archive.html');
+const FEED_PATH = path.join(OUTPUT_DIR, 'feed.xml');
 
 async function main() {
   const inputPath = process.argv[2];
@@ -43,14 +45,18 @@ async function main() {
     filename,
     subject: post.subject,
     date: post.date,
-    tags: post.tags
+    tags: post.tags,
+    author: post.author,
+    size: new TextEncoder().encode(html).length
   });
   fs.writeFileSync(MANIFEST_PATH, serializeManifest(manifest));
   fs.writeFileSync(ARCHIVE_PATH, renderArchive(manifest));
+  fs.writeFileSync(FEED_PATH, renderFeed(manifest));
 
   console.log('Generated:');
   console.log(`  output/posts/${filename}`);
   console.log('  output/archive.html (updated)');
+  console.log('  output/feed.xml (updated)');
 }
 
 main().catch((err) => {

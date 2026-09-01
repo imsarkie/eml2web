@@ -3,44 +3,220 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>eml2web</title>
+  <title>Sarkie</title>
   <link rel="stylesheet" href="/style.css">
+  <link rel="alternate" type="application/rss+xml" title="eml2web" href="/feed.xml">
 </head>
 <body>
 
-<nav class="site-nav"><a href="/">Home</a> <a href="/archive.html">Index</a> <a href="/about.html">About</a></nav>
+<nav class="site-nav"><a href="/">eml2web</a> <a href="/archive.html">Index</a> <a href="/about.html">About</a> <a href="/feed.xml">RSS</a></nav>
 <hr>
 
 <h1>eml2web</h1>
 
-<p>This is a small publishing pipeline: an email becomes a page here.</p>
-
-<pre>email -&gt; parser -&gt; HTML -&gt; GitHub -&gt; GitHub Pages</pre>
-
 <p>
-There is no CMS, no editor, no dashboard. Writing an email and sending it
-<em>is</em> the act of publishing. The email's plain-text body is escaped and
-dropped into a bare <code>&lt;pre&gt;</code> block, next to its own headers
-(From, Subject, Date, ...). The only formatting applied is
-<code>**bold**</code>/<code>__bold__</code>, <code>*italic*</code>/<code>_italic_</code>,
-and turning URLs into links - nothing else is reformatted or reinterpreted.
+I don't really think of this as a blog. Blogs have platforms, and platforms
+have opinions about what a post should look like: a hero image, a "3 min
+read" badge, a newsletter popup asking for my email before I've read a
+single sentence. None of that happens here, on purpose. This is closer to a
+personal zine than a blog, and the whole thing runs on one stubborn idea:
+writing an email and publishing a page should be the exact same action, not
+two different ones that happen to be near each other.
 </p>
 
 <p>
-Adding <code>#word</code> anywhere in an email's subject tags the post; the
-<a href="/archive.html">Index</a> groups every post by tag.
+So that's what it is. I open my mail app, write to myself basically, hit
+send, and a few seconds later there's a new page on this domain. No editor
+to open, no dashboard to log into, no drafts folder quietly filling up with
+things I never finish. If I can send an email, I've published something.
+That's the entire interface.
+</p>
+
+<pre>email -&gt; Cloudflare Worker -&gt; parsed &amp; rendered -&gt; committed to GitHub -&gt; GitHub Pages</pre>
+
+<h2>Unconventional on purpose</h2>
+
+<p>
+I could have used Substack. Or Medium, or WordPress, or any of the dozen
+"just start writing" tools that exist specifically so nobody ever has to
+build something like this themselves. I didn't want any of them, not
+because they're bad at their jobs, but because none of them are mine. My
+words would sit on someone else's infrastructure, styled by someone else's
+design system, one pricing page away from a paywall or a "we're sunsetting
+this" email of their own. I wanted something small enough that I actually
+understand every piece of it, and boring enough that it'll probably still
+be running long after whatever's trendy this year gets acquired and quietly
+switched off.
 </p>
 
 <p>
-Inspired by old plain-text email archives like
-<a href="https://yarchive.net/comp/bsd.html">yarchive.net</a>.
+That's the indie web idea, more or less, even though I arrived at it
+sideways rather than by reading a manifesto: own your words, keep them on
+infrastructure you actually control, and keep the format plain enough
+(regular HTML, no build tool, no framework, no JavaScript at all) that it
+can't really rot. There's no algorithm here deciding who gets to see a
+post. Nobody's tracking how long you stayed. If you're reading this, it's
+because you came here on purpose, or because a feed reader you already
+trust pointed you at it.
+</p>
+
+<p>
+The DIY part matters to me just as much as the indie part. This whole
+pipeline is maybe a dozen small files, and I wrote every one of them,
+mostly to see if I could. There's something genuinely satisfying about a
+weird little tool doing exactly what you wanted, built by you, instead of
+bending your own habits to fit whatever a product manager decided a
+"creator" needs this quarter. Nobody asked for a plain-text email archive
+with a Cloudflare Worker duct-taped to the front of it. That was more or
+less the appeal.
+</p>
+
+<h2>Where the email actually goes</h2>
+
+<p>
+There's one address, on a subdomain I pointed at Cloudflare just for this,
+that does nothing but receive mail and hand it straight to a small
+Cloudflare Worker. That's the entire "backend." No inbox sitting around, no
+server polling anything on a timer, nothing to keep warm. Cloudflare's
+Email Routing notices mail arriving at that address and invokes the Worker
+right then, so a post usually shows up here within a few seconds of me
+sending it, which still feels a little like magic even though I built it.
+</p>
+
+<p>
+The first thing the Worker does is check who actually sent it. There's an
+allowlist of exactly one address, mine, and if the "From" header doesn't
+match it, the email gets dropped on the floor. Silently. No bounce, no
+error reply, nothing a stranger could use to even confirm the address is
+real. That's deliberate: leave that check out, or get it slightly wrong,
+and this address turns into a wide-open publish endpoint for anyone who
+ever guesses it. Fail closed, never open.
+</p>
+
+<h2>Turning the raw email into a page</h2>
+
+<p>
+Assuming it's really me, the Worker parses the raw email (a library called
+postal-mime does the actual MIME decoding) and pulls out the boring but
+essential parts: who it's from, the subject, the date, and, importantly,
+only the plain-text body. If I ever send from something that also attaches
+an HTML version, that HTML is read and then thrown away. This site only
+ever publishes what a plain-text terminal could have shown me, which is
+also why there's no styled email nonsense sneaking onto the page.
+</p>
+
+<p>
+The subject line does double duty. Anywhere I write <code>#something</code>
+in it, that word gets pulled out as a tag and stripped from the visible
+title, so "Why I still use Unix #unix #philosophy" becomes the clean title
+"Why I still use Unix" on the page, with "unix" and "philosophy" filed away
+as tags. Those tags are what group everything on the <a
+href="/archive.html">Index</a> page.
+</p>
+
+<p>
+The body gets escaped (so nothing in it can accidentally become live HTML,
+more on that below) and dropped into a plain <code>&lt;pre&gt;</code> block
+next to its own headers. On top of that, exactly three narrow substitutions
+happen and nothing else: <code>**bold**</code> or <code>__bold__</code>
+becomes actual bold, <code>*italic*</code> or <code>_italic_</code> becomes
+actual italics, and anything that looks like a URL becomes a clickable link.
+That's the entire formatting language. No headers, no lists, no
+blockquotes, no Markdown parser hiding in there. If I want a numbered list
+I just type "1. thing" and trust the page to render it as I typed it.
+</p>
+
+<p>
+There's one more quiet fixup worth mentioning, because it took me a while to
+even notice it was happening. Most mail apps, when you write a long
+paragraph in plain text, insert real line breaks every seventy-something
+characters so the raw message looks tidy in a narrow terminal. Rendered
+naively, that turns a normal sentence into something that looks like it was
+chopped up mid-thought. So this site tries to undo that: a blank line stays
+a real paragraph break, a line that looks like "7. something" or a run of
+dashes stays on its own line, and everything else between blank lines gets
+rejoined into one flowing line, the way a browser would show ordinary prose.
+It's a heuristic, not a real parser, and it'll occasionally get something
+wrong (a "-" bullet point, for instance, currently just gets swallowed back
+into the paragraph around it) but it fixes the common case well enough that
+I stopped noticing the alternative.
+</p>
+
+<h2>Actually publishing it</h2>
+
+<p>
+Once the page is built, it gets committed straight to this site's GitHub
+repository through GitHub's API, using a token that can only write to this
+one repo and nothing else. It's create-only: if a file with that exact name
+already exists, the commit is refused rather than silently overwritten, so
+resending a message by mistake can't quietly erase something I already
+published. The filename itself is just the date plus a slugified version of
+the subject, built from a whitelist of safe characters only, so there's no
+way a weird subject line could ever turn into a path it shouldn't.
+</p>
+
+<p>
+Right after that, three more files get regenerated in full from scratch:
+<code>posts.json</code> (a plain list of every post: filename, subject,
+date, tags, author, and page size), <code>archive.html</code> (the <a
+href="/archive.html">Index</a> page you can go look at right now, grouped by
+tag, styled a little like the old <a
+href="https://yarchive.net/comp/index.html">yarchive.net</a> archives that
+got me thinking about this whole project), and <code>feed.xml</code>, an RSS
+feed, so if you'd rather not check back here manually, your feed reader can
+just tell you. None of these three files are hand-edited, ever. They get
+rebuilt completely every single time a post goes out, straight from
+whatever's in <code>posts.json</code>, so they can never drift out of sync
+with reality.
+</p>
+
+<p>
+And then GitHub Pages, which was already serving this repo as a static
+site, just picks up the new commit and serves the new page. There's no
+build step beyond what the Worker already did, no deploy to trigger, no
+cache to bust. The commit lands, the site updates.
+</p>
+
+<h2>Minimal on purpose, not by accident</h2>
+
+<p>
+None of this is efficient, if efficiency is what you're measuring. A real
+CMS would do all of it faster, with a friendlier interface and a real
+undo button. That was never the point. I wanted the act of writing
+something and the act of publishing it to be the same handful of seconds,
+with nothing sitting in between them that I could get precious about. No
+drafts folder quietly guilt-tripping me. No "someday I'll finish this"
+pile. Constraints like "plain text only, no editing after it's out" aren't
+a limitation I'm putting up with, they're basically the whole design. A
+blank text box with infinite formatting options is how I end up rewriting
+the first sentence nine times and publishing nothing. A blank email is how
+I end up hitting send.
+</p>
+
+<p>
+There's also no JavaScript running on any published page, none at all,
+which means there's genuinely nothing here an attacker could slip into an
+email and have run in your browser, and it means these pages will probably
+still look exactly the same a decade from now. No framework to fall out of
+support, no build tool to stop working with the next Node version, no
+dependency tree to rot. Plain HTML and a stylesheet don't really go out of
+style. That's not nostalgia for its own sake, it's just a genuinely good
+property for something you want to last.
+</p>
+
+<p>
+This isn't a blogging platform and I've got no plans to turn it into one.
+No comment section, no analytics quietly counting you, no account system,
+no search box, no "subscribe" button anywhere. If something here catches
+your interest enough that you want to say so, the honest way to do it is
+the same way I published it in the first place: write me an email.
 </p>
 
 <p>See the <a href="/archive.html">Index</a> for all posts, or <a href="/about.html">About</a> for who's writing them.</p>
 
 <footer>
 <hr>
-<p>Published via email &middot; <a href="https://github.com/imsarkie/eml2web">eml2web</a></p>
+<p>Published via email &middot; <a href="https://github.com/imsarkie/eml2web">eml2web</a> &middot; <a class="rss-link" href="/feed.xml" aria-label="RSS feed">RSS<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect width="16" height="16" rx="3" fill="#f68b33"/><circle cx="4" cy="12" r="1.7" fill="#fff"/><path d="M2.5 7.5a6 6 0 0 1 6 6" fill="none" stroke="#fff" stroke-width="2"/><path d="M2.5 3.5a10 10 0 0 1 10 10" fill="none" stroke="#fff" stroke-width="2"/></svg></a></p>
 </footer>
 
 </body>

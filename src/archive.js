@@ -32,16 +32,23 @@ function groupByTag(manifest) {
   return groups;
 }
 
+// "Title (Author) [1234 bytes]" - the yarchive.net-style entry line.
+// `author` and `size` are absent on manifest entries written before those
+// fields existed, so both are optional and simply omitted rather than
+// printed blank.
+function renderEntry(post) {
+  const title = escapeHtml(post.subject || post.filename);
+  const link = `<a href="posts/${escapeHtml(post.filename)}">${title}</a>`;
+  const author = post.author ? ` (${escapeHtml(post.author)})` : '';
+  const size = typeof post.size === 'number' ? ` [${post.size} bytes]` : '';
+  return `    <li>${link}${author}${size}</li>`;
+}
+
 function renderSection(tagLabel, posts) {
   // Filenames are "YYYY-MM-DD-slug.html", so sorting the strings
   // descending already puts the newest post first - no date parsing needed.
   const sorted = [...posts].sort((a, b) => (a.filename < b.filename ? 1 : -1));
-  const items = sorted
-    .map(
-      (post) =>
-        `    <li><a href="posts/${escapeHtml(post.filename)}">${escapeHtml(post.subject || post.filename)}</a></li>`
-    )
-    .join('\n');
+  const items = sorted.map(renderEntry).join('\n');
   return `<section>\n  <h2>${escapeHtml(tagLabel)}</h2>\n  <ul>\n${items}\n  </ul>\n</section>`;
 }
 

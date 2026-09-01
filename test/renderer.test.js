@@ -52,12 +52,14 @@ test('body is rendered inside a <pre class="email-body"> element', () => {
   assert.match(html, /<pre class="email-body">plain text body<\/pre>/);
 });
 
-test('preserves newlines and indentation exactly inside the <pre> body', () => {
+test('keeps blank lines as paragraph breaks but reflows a hard-wrapped line into its neighbor', () => {
+  // See src/reflow.js: a single line break with no blank line between is
+  // treated as mail-client wrap, not an intentional break, and joined.
   const body = 'line one\n\n  indented line\nline three';
   const html = renderPost(basePost({ body }));
   const match = html.match(/<pre class="email-body">([\s\S]*?)<\/pre>/);
   assert.ok(match, 'expected a <pre class="email-body"> block');
-  assert.equal(match[1], body);
+  assert.equal(match[1], 'line one\n\nindented line line three');
 });
 
 test('omits meta lines for absent optional fields instead of printing them blank', () => {

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { escapeHtml } from './html.js';
 import { formatBody } from './inlineFormat.js';
+import { reflowBody } from './reflow.js';
 
 // Computed lazily, not at module load: import.meta.url isn't a usable
 // file:// URL in the Cloudflare Worker runtime, and that environment
@@ -50,5 +51,5 @@ export function renderPost(post, { template } = {}) {
   return templateText
     .replace('{{TITLE}}', () => escapeHtml(title))
     .replace('{{META}}', () => meta)
-    .replace('{{BODY}}', () => formatBody(post.body));
+    .replace('{{BODY}}', () => reflowBody(formatBody(post.body)));
 }

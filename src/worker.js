@@ -57,10 +57,18 @@ export default {
         repo,
         branch,
         token,
-        entry: { filename, subject: post.subject, date: post.date, tags: post.tags },
-        archiveTemplate: archiveTemplateHtml
+        entry: {
+          filename,
+          subject: post.subject,
+          date: post.date,
+          tags: post.tags,
+          author: post.author,
+          size: new TextEncoder().encode(html).length
+        },
+        archiveTemplate: archiveTemplateHtml,
+        siteUrl: env.SITE_URL
       });
-      console.log('posts.json and archive.html updated');
+      console.log('posts.json, archive.html, and feed.xml updated');
     } catch (err) {
       // GitHubPublishError messages are already safe to log (no token).
       console.error(err instanceof GitHubPublishError ? err.message : `Publish failed: ${err.message}`);

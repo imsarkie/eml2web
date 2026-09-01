@@ -74,9 +74,16 @@ async function main() {
     repo,
     branch,
     token,
-    entry: { filename, subject: post.subject, date: post.date, tags: post.tags }
+    entry: {
+      filename,
+      subject: post.subject,
+      date: post.date,
+      tags: post.tags,
+      author: post.author,
+      size: new TextEncoder().encode(html).length
+    }
   });
-  console.log('  posts.json and archive.html updated');
+  console.log('  posts.json, archive.html, and feed.xml updated');
 }
 
 main().catch((err) => {

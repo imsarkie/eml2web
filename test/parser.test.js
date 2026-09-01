@@ -12,6 +12,7 @@ test('parses a basic plain-text email', async () => {
   const post = await parseEmail(fixture('sample.eml'));
   assert.equal(post.subject, 'Why I still use Unix');
   assert.equal(post.from, 'Sarky <sarky@example.com>');
+  assert.equal(post.author, 'Sarky');
   assert.equal(post.to, 'unix-fans@example.com');
   assert.equal(post.messageId, '<sample-001@example.com>');
   assert.match(post.date, /2026/);
@@ -49,6 +50,7 @@ test('handles missing optional headers gracefully instead of throwing', async ()
   assert.equal(post.inReplyTo, '');
   assert.equal(post.references, '');
   assert.match(post.from, /anon@example\.com/);
+  assert.equal(post.author, 'anon@example.com');
   assert.match(post.body, /Just a body\./);
 });
 

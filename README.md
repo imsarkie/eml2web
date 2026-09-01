@@ -60,13 +60,15 @@ Output appears in `output/`:
 ```text
 output/
   posts/2026-08-30-why-i-still-use-unix.html   - the rendered post
-  posts.json                                    - manifest: [{ filename, subject, date, tags }, ...]
+  posts.json                                    - manifest: [{ filename, subject, date, tags, author, size }, ...]
   archive.html                                  - regenerated from posts.json on every publish
+  feed.xml                                      - RSS 2.0 feed, also regenerated on every publish
 ```
 
 Re-running against the same email never overwrites an existing post file - it
-appends `-2`, `-3`, etc. to the filename instead. `posts.json` and `archive.html`
-are always regenerated in full from the current manifest, so they never go stale.
+appends `-2`, `-3`, etc. to the filename instead. `posts.json`, `archive.html`, and
+`feed.xml` are always regenerated in full from the current manifest, so they never
+go stale.
 `index.html` (Home) and `about.html` are separate, static, hand-edited pages - see
 "Pages, tags, and the archive" below.
 
@@ -101,8 +103,9 @@ GITHUB_TOKEN=ghp_xxx GITHUB_OWNER=octocat GITHUB_REPO=archive \
 ```
 
 This commits to `posts/<date>-<slug>.html` in the target repo, with a commit message
-like `Publish: Why I still use Unix`, then updates `posts.json` and `archive.html` at
-the repo root to include it (see "Pages, tags, and the archive" below).
+like `Publish: Why I still use Unix`, then updates `posts.json`, `archive.html`, and
+`feed.xml` at the repo root to include it (see "Pages, tags, and the archive" and
+"RSS feed" below).
 
 **Publishing is create-only.** Before writing, it checks whether the target path
 already exists on the branch; if it does, it refuses to overwrite it and exits
@@ -146,12 +149,37 @@ and drive `archive.html`.
 
 `archive.html` groups every post by tag, alphabetically, newest post first
 within each tag (`src/archive.js`); an untagged post lands in an "Uncategorized"
-section at the end, rather than being dropped. It's built from `posts.json`, a
-flat array of `{ filename, subject, date, tags }` per post (`src/manifest.js`).
-That file is plain data, not a database: no queries, no server, just something
-`archive.html` gets rebuilt from. `posts/` itself holds only the emailed posts'
-own HTML - the manifest and archive live at the repo root, next to `index.html`,
-`about.html`, and `style.css`.
+section at the end, rather than being dropped. Each entry reads
+"Title (Author) [N bytes]" - inspired by [yarchive.net](https://yarchive.net/comp/index.html)'s
+index. It's built from `posts.json`, a flat array of
+`{ filename, subject, date, tags, author, size }` per post (`src/manifest.js`).
+`author` is just the sender's display name (no address - see `authorName()` in
+`src/parser.js`); `size` is the published page's byte length, captured once at
+publish time. Both are optional on older entries and simply omitted from the
+listing rather than printed blank. That file is plain data, not a database: no
+queries, no server, just something `archive.html` gets rebuilt from. `posts/`
+itself holds only the emailed posts' own HTML - the manifest and archive live at
+the repo root, next to `index.html`, `about.html`, and `style.css`.
+
+## RSS feed
+
+`feed.xml` (`src/feed.js`) is an RSS 2.0 feed built from the same `posts.json`
+manifest `archive.html` comes from, rebuilt in full on every publish alongside it -
+there's no separate step to remember. It lists the 20 newest posts (newest first,
+same ordering as `archive.html`), each as an `<item>` with `title`, an absolute
+`link`/`guid` under `SITE_URL`, `pubDate` (from the post's `Date` header, in the
+RFC 822 format RSS expects), and one `<category>` per tag.
+
+Every page links to it two ways: a `<link rel="alternate" type="application/rss+xml">`
+in the `<head>` (so browsers/feed readers auto-detect it) and a plain `RSS` link in
+the nav. Point any feed reader (Feedly, NetNewsWire, etc.) at
+`https://blog.yourdomain.tld/feed.xml` to get new posts without polling the site.
+
+`SITE_URL` is the one piece of config this needs - the absolute base the feed's
+links are built from, since RSS items can't use the relative `/posts/...` hrefs the
+HTML pages do. It's set in `wrangler.toml` under `[vars]` (not secret) for the
+Worker path, and defaults to that same URL if omitted, e.g. for the local CLI and
+`cli-github.js`.
 
 ### Inline formatting
 
@@ -171,6 +199,13 @@ mail client's plain-text-export convention), so both can be used unambiguously i
 the same email. Links are resolved before emphasis, so a `_` or `&` that's
 legitimately part of a URL can never be misread as emphasis syntax or corrupt an
 `href`. Nesting (bold containing italic, etc.) isn't supported.
+
+After formatting, `src/reflow.js` runs over the result to undo mail-client
+hard-wrapping: a blank line stays a paragraph break, a line starting with
+`<number>.` or a `---` rule stays on its own line, and every other run of
+consecutive non-blank lines is joined into one flowing line (leading indentation
+included). See "What is intentionally not implemented" below for the heuristic's
+limits.
 
 ## Run the tests
 
@@ -214,6 +249,20 @@ manifest, not a database or CMS - see "Pages, tags, and the archive").
 If a fixture email has attachments, they are silently ignored; only the plain-text
 body is published.
 
+**Plain-text reflow is a heuristic, not real parsing.** Most mail clients hard-wrap
+long lines in plain-text mode at a fixed column width (typically 70-80 characters),
+inserting a real `\n` with no marker distinguishing "just wrapping" from "you
+pressed Enter" (that marker would be a trailing space on the wrapped line, the
+RFC 3676 "format=flowed" convention - most clients don't send it). Rendered
+verbatim in a `<pre>` block, that hard-wrap makes sentences look broken mid-line.
+`src/reflow.js` undoes this after the fact with a small heuristic (see "Inline
+formatting" below), not a real markdown/list parser - a line that happens to start
+with `<number>.` or is a run of three or more `-` is assumed to be intentional and
+kept on its own line; everything else between blank lines is joined back into one
+flowing line. It gets ordinary prose and numbered lists right, but it can't tell
+apart every kind of intentional formatting (e.g. a line starting with `-` as a
+bullet, not a rule, would still get merged into its neighbor).
+
 ## Threading (not built yet, but not thrown away)
 
 `Message-ID`, `In-Reply-To`, and `References` are parsed, preserved, and rendered
@@ -240,7 +289,7 @@ you email publish@blog.<yourdomain>
   -> parser.js / renderer.js / filename.js (unchanged)
   -> github.js  (GitHub Contents API: publishToGitHub, create-only)
   -> commit
-  -> publishArchive.js (updateArchive: posts.json + archive.html, create-or-update)
+  -> publishArchive.js (updateArchive: posts.json + archive.html + feed.xml, create-or-update)
   -> GitHub Pages serves it all
 ```
 
@@ -249,8 +298,9 @@ instead of `process.env`, bundles `templates/post.html` and `templates/archive.h
 as text imports (Workers have no filesystem, so `renderPost`/`renderArchive` accept
 the template as an optional override - see `src/renderer.js` / `src/archive.js`),
 and calls the exact same `parseEmail` / `renderPost` / `buildBaseName` /
-`publishToGitHub` / `updateArchive` functions the CLI uses. `index.html` and
-`about.html` are static, so the Worker never touches them.
+`publishToGitHub` / `updateArchive` functions the CLI uses (`updateArchive` gets
+`env.SITE_URL` for `feed.xml`'s absolute links - see "RSS feed" above). `index.html`
+and `about.html` are static, so the Worker never touches them.
 
 **Only mail from an address listed in `ALLOWED_SENDER` gets published; anything
 else is silently dropped** (see `src/allowlist.js`). `ALLOWED_SENDER` holds one
@@ -281,10 +331,12 @@ want to receive mail on:
    wrangler secret put ALLOWED_SENDER    # address(es) allowed to publish, comma-separated
    wrangler deploy
    ```
-   `GITHUB_OWNER` / `GITHUB_REPO` / `GITHUB_BRANCH` / `POSTS_DIR` are already set in
-   `wrangler.toml` under `[vars]` - edit them there if they differ, since they're not
-   secret. `GITHUB_TOKEN` and `ALLOWED_SENDER` are deliberately kept out of that file
-   (which is committed to a public repo) and set as Worker secrets instead.
+   `GITHUB_OWNER` / `GITHUB_REPO` / `GITHUB_BRANCH` / `POSTS_DIR` / `SITE_URL` are
+   already set in `wrangler.toml` under `[vars]` - edit them there if they differ
+   (`SITE_URL` should be `https://` + whatever domain the site is actually served
+   from, used to build `feed.xml`'s links), since none of them are secret.
+   `GITHUB_TOKEN` and `ALLOWED_SENDER` are deliberately kept out of that file (which
+   is committed to a public repo) and set as Worker secrets instead.
 6. In the Email Routing rule from step 4, point it at the deployed `eml2web` Worker.
 
 From then on: emailing `publish@blog.yourdomain.tld` from your allowed address
@@ -303,14 +355,17 @@ src/
   parser.js         - raw email -> normalized post object (uses postal-mime, tags.js)
   tags.js           - extractTags(): pulls "#word" tags out of a subject
   renderer.js       - normalized post -> escaped HTML (uses templates/post.html or an injected template)
+  inlineFormat.js   - bold/italic/link substitutions on the body (see "Inline formatting")
+  reflow.js         - undoes mail-client hard-wrapping in the body (see "Inline formatting")
   archive.js        - manifest -> the tag-grouped archive.html (uses templates/archive.html)
+  feed.js           - manifest -> the RSS 2.0 feed.xml (see "RSS feed")
   manifest.js       - parse/append/serialize posts.json
-  publishArchive.js - shared "update posts.json + archive.html on GitHub" step
+  publishArchive.js - shared "update posts.json + archive.html + feed.xml on GitHub" step
   filename.js       - normalized post -> collision-safe "YYYY-MM-DD-slug.html"
   github.js         - publishToGitHub (create-only) / upsertToGitHub (create-or-update)
   allowlist.js      - isAllowedSender(): fail-closed sender check for the Worker
   config.js         - reads GitHub settings from environment variables (CLI only)
-  cli.js            - local command: .eml in, output/{posts/,posts.json,archive.html} out
+  cli.js            - local command: .eml in, output/{posts/,posts.json,archive.html,feed.xml} out
   cli-github.js     - GitHub command: .eml in, committed to the repo via github.js
   worker.js         - Cloudflare Email Worker adapter (see "Email-triggered publishing")
 templates/
@@ -322,8 +377,8 @@ style.css           - the entire stylesheet for published pages
 test/
   fixtures/*.eml
   parser.test.js, renderer.test.js, filename.test.js, github.test.js, allowlist.test.js,
-  tags.test.js, manifest.test.js, archive.test.js
+  tags.test.js, manifest.test.js, archive.test.js, feed.test.js, reflow.test.js
 output/             - where the local CLI writes generated pages (gitignored)
 .env.example        - GITHUB_TOKEN / GITHUB_OWNER / GITHUB_REPO / GITHUB_BRANCH
-wrangler.toml       - Worker deployment config ([vars], text-import rule for the templates)
+wrangler.toml       - Worker deployment config ([vars] incl. SITE_URL, text-import rule for the templates)
 ```

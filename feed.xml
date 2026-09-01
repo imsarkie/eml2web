@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>eml2web</title>
+    <link>https://blog.imsarkie.in</link>
+    <description>Published via email.</description>
+    <atom:link href="https://blog.imsarkie.in/feed.xml" rel="self" type="application/rss+xml" />
+    <language>en</language>
+    <lastBuildDate>Tue, 01 Sep 2026 17:18:05 GMT</lastBuildDate>
+    <generator>eml2web</generator>
+    <item>
+      <title>Why I still use Unix</title>
+      <link>https://blog.imsarkie.in/posts/2026-08-30-why-i-still-use-unix.html</link>
+      <guid isPermaLink="true">https://blog.imsarkie.in/posts/2026-08-30-why-i-still-use-unix.html</guid>
+      <pubDate>Sun, 30 Aug 2026 09:00:00 -0700</pubDate>
+    </item>
+    <item>
+      <title>A Guide to Taking the Train</title>
+      <link>https://blog.imsarkie.in/posts/2026-08-30-a-guide-to-taking-the-train.html</link>
+      <guid isPermaLink="true">https://blog.imsarkie.in/posts/2026-08-30-a-guide-to-taking-the-train.html</guid>
+      <pubDate>Sun, 30 Aug 2026 20:26:48 +0530</pubDate>
+      <category>personal</category>
+    </item>
+  </channel>
+</rss>

@@ -18,6 +18,8 @@ GITHUB_OWNER = "imsarkie"
 GITHUB_REPO = "eml2web"
 GITHUB_BRANCH = "main"
 POSTS_DIR = "posts"
+# Absolute base URL used to build links in feed.xml (see src/feed.js).
+SITE_URL = "https://blog.imsarkie.in"
 
 # Deploy steps (see README.md, "Email-triggered publishing"):
 #   1. wrangler login
